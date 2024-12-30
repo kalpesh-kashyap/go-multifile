@@ -63,15 +63,15 @@ func saveFileData(fileData models.FILEMODEL) (models.FILEMODEL, error) {
 	return fileData, nil
 }
 
-func DownloadAndSaveFile(url string, filePath string) ([]models.FILEMODEL, error) {
+func DownloadAndSaveFile(url string, filePath string) (models.FILEMODEL, error) {
 	res, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return models.FILEMODEL{}, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad status: %s", res.Status)
+		return models.FILEMODEL{}, fmt.Errorf("bad status: %s", res.Status)
 	}
 
 	fileType := res.Header.Get("Content-Type")
@@ -81,13 +81,13 @@ func DownloadAndSaveFile(url string, filePath string) ([]models.FILEMODEL, error
 
 	out, err := os.Create(fullName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create file: %v", err)
+		return models.FILEMODEL{}, fmt.Errorf("failed to create file: %v", err)
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create file: %v", err)
+		return models.FILEMODEL{}, fmt.Errorf("failed to create file: %v", err)
 	}
 
 	var fileData models.FILEMODEL
@@ -99,9 +99,9 @@ func DownloadAndSaveFile(url string, filePath string) ([]models.FILEMODEL, error
 
 	fileData, err = saveFileData(fileData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create file: %v", err)
+		return models.FILEMODEL{}, fmt.Errorf("failed to create file: %v", err)
 	}
-	return []models.FILEMODEL{fileData}, nil
+	return fileData, nil
 }
 
 func extractFileName(res *http.Response, url string) string {
