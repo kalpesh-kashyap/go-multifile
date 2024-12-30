@@ -9,15 +9,6 @@ import (
 	"url-file-save/controller"
 )
 
-func downloadProcess(wg sync.WaitGroup, url string) {
-	defer wg.Done()
-	_, err := controller.DownloadAndSaveFile(url, constant.FILE_DOWNLOAD_PATH)
-	if err != nil {
-		fmt.Println("error in file process" + err.Error())
-	}
-
-}
-
 func GoRoutineHandler(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
 	var urls []string
@@ -28,14 +19,43 @@ func GoRoutineHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	errorChannel := make(chan error, len(urls))
+	results := make(chan string, len(urls))
+
 	for _, url := range urls {
 		wg.Add(1)
-		go downloadProcess(wg, url)
+		go func(url string) {
+			defer wg.Done()
+			if _, err := controller.DownloadAndSaveFile(url, constant.FILE_DOWNLOAD_PATH); err != nil {
+				errorChannel <- fmt.Errorf("fail to process on %s: %v", url, err)
+				return
+			}
+			results <- fmt.Sprintf("successfully processed %s", url)
+		}(url)
 	}
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(errorChannel)
+		close(results)
+	}()
 
-	w.Header().Set("Conent-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode("All files processed successfully")
+	var errorFiles []string
+	var successFiles []string
+
+	for err := range errorChannel {
+		errorFiles = append(errorFiles, err.Error())
+	}
+
+	for success := range results {
+		successFiles = append(successFiles, success)
+	}
+	response := map[string]interface{}{
+		"sucess": successFiles,
+		"errors": errorFiles,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
