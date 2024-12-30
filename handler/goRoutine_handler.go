@@ -19,8 +19,8 @@ func GoRoutineHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errorChannel := make(chan error, len(urls))
-	results := make(chan string, len(urls))
+	errorChannel := make(chan error, 5)
+	results := make(chan string, 10)
 
 	for _, url := range urls {
 		wg.Add(1)
