@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -115,4 +116,54 @@ func extractFileName(res *http.Response, url string) string {
 		}
 	}
 	return filepath.Base(url)
+}
+
+func DownloadAndSaveFileWithContext(ctx context.Context, url string, filePath string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status: %s", res.Status)
+	}
+
+	fileType := res.Header.Get("Content-Type")
+
+	fileName := extractFileName(res, url)
+	fullName := filepath.Join(filePath, fileName)
+
+	out, err := os.Create(fullName)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %v", err)
+	}
+	defer out.Close()
+
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("download canceled: %w", ctx.Err())
+	default:
+		_, err = io.Copy(out, res.Body)
+		if err != nil {
+			return fmt.Errorf("failed to create file: %v", err)
+		}
+
+		var fileData models.FILEMODEL
+		fileData.FileType = fileType
+		fileData.FilePath = fullName
+		fileData.URL = url
+		fileData.FileName = fileName
+		fileData.CretedDate = fmt.Sprint(time.Now())
+
+		fileData, err = saveFileData(fileData)
+		if err != nil {
+			return fmt.Errorf("failed to create file: %v", err)
+		}
+	}
+	return nil
 }

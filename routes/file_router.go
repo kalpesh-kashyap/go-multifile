@@ -9,5 +9,6 @@ func FileRouter(mux *http.ServeMux) {
 	// mux.HandleFunc("/download", handler.FileHandler)
 	// mux.HandleFunc("/download", handler.GoRoutineHandler)
 	// mux.HandleFunc("/download", handler.WorkerPoolHandler)
-	mux.HandleFunc("/download", handler.RetryWorkerPoolHandler)
+	// mux.HandleFunc("/download", handler.RetryWorkerPoolHandler)
+	mux.HandleFunc("/download", handler.ContextWorkerPoolHandler)
 }
